@@ -56,7 +56,7 @@ class SysDispAug(Component):
 
         nnz = 36 * num_elems + 2 * 3 * num_cons
 
-        data, self.rows, self.cols = lib.getmtx(num_nodes, num_elems, num_cons, nnz,
+        self.data, self.rows, self.cols = lib.getmtx(num_nodes, num_elems, num_cons, nnz,
                                       E, nodes, elems+1, numpy.ones(num_elems), cons+1)
 
 
@@ -77,146 +77,30 @@ class SysDispAug(Component):
 #        self.deriv_options['type'] = 'cs'
 #        self.deriv_options['form'] = 'central'
 
-    def get_stiffness_matrix(self, areas):
+
+    def get_matrix(self, areas):
+
         nodes = self.nodes
-        bars = self.elements
+        elems = self.elements
+        cons = self.cons
         E = self.E
 
         num_nodes = nodes.shape[0]
-        num_elems = bars.shape[0]
+        num_elems = elems.shape[0]
+        num_cons = cons.shape[0]
 
-        nnz = 36 * num_elems
+        nnz = 36 * num_elems + 2 * 3 * num_cons
 
-        Kdata = numpy.zeros(36 * num_elems)
-        Krows = numpy.zeros(36 * num_elems, int)
-        Kcols = numpy.zeros(36 * num_elems, int)
+        data = lib.getmtx2(num_nodes, num_elems, nnz,
+                           E, nodes, elems+1, areas)
 
-        Telem = numpy.zeros((2, 6))
-        Kelem = numpy.array([[1, -1], [-1, 1]])
+        size = 3 * num_nodes + 3 * num_cons
 
-        data_6x6 = numpy.zeros((6, 6))
-        rows_6x6 = numpy.zeros((6, 6), dtype=numpy.int)
-        cols_6x6 = numpy.zeros((6, 6), dtype=numpy.int)
+        #print('len(data),len(self.rows),len(self.cols),nnz,data',\
+        #len(data),len(self.rows),len(self.cols),nnz,data)
 
-        for ind1 in xrange(6):
-            for ind2 in xrange(6):
-                rows_6x6[ind1, ind2] = ind1%3
-                cols_6x6[ind1, ind2] = ind2%3
-
-        data_36 = data_6x6.reshape(36)
-        rows_36 = rows_6x6.reshape(36)
-        cols_36 = cols_6x6.reshape(36)
-
-        ones11 = numpy.zeros((6, 6), dtype=numpy.int)
-        ones12 = numpy.zeros((6, 6), dtype=numpy.int)
-        ones21 = numpy.zeros((6, 6), dtype=numpy.int)
-        ones22 = numpy.zeros((6, 6), dtype=numpy.int)
-
-        ones11[0:3, 0:3] = 1
-        ones12[0:3, 3:6] = 1
-        ones21[3:6, 0:3] = 1
-        ones22[3:6, 3:6] = 1
-
-        ones11 = ones11.reshape(36)
-        ones12 = ones12.reshape(36)
-        ones21 = ones21.reshape(36)
-        ones22 = ones22.reshape(36)
-
-        index = 0
-        for ielem in xrange(bars.shape[0]):
-            xyz1 = nodes[bars[ielem, 0], :]
-            xyz2 = nodes[bars[ielem, 1], :]
-            L = numpy.linalg.norm(xyz2 - xyz1)
-
-            cos_xyz = (xyz2 - xyz1) / L
-            Telem[0, 0:3] = cos_xyz
-            Telem[1, 3:6] = cos_xyz
-
-            data_6x6[:, :] = Telem.T.dot(Kelem).dot(Telem) * E * areas[ielem] / L
-
-            ind1 = 3 * bars[ielem, 0]
-            ind2 = 3 * bars[ielem, 1]
-
-            Kdata[index: index+36] += data_36
-            Krows[index: index+36] += rows_36
-            Kcols[index: index+36] += cols_36
-
-            Krows[index: index+36] += ones11 * ind1
-            Kcols[index: index+36] += ones11 * ind1
-
-            Krows[index: index+36] += ones12 * ind1
-            Kcols[index: index+36] += ones12 * ind2
-
-            Krows[index: index+36] += ones21 * ind2
-            Kcols[index: index+36] += ones21 * ind1
-
-            Krows[index: index+36] += ones22 * ind2
-            Kcols[index: index+36] += ones22 * ind2
-
-            index += 36
-
-        Kmat = scipy.sparse.csc_matrix((Kdata, (Krows, Kcols)),
-                                       shape=(3 * num_nodes, 3 * num_nodes))
-
-        return Kmat
-
-    def get_constraint_matrix(self):
-        nodes = self.nodes
-        constrained = self.cons
-
-        num = len(constrained)
-        num_nodes = len(nodes)
-
-        data = numpy.ones(3*num)
-        lins = numpy.arange(3*num)
-        cons = numpy.zeros(3*num, int)
-
-        for ind in xrange(3):
-            cons[ind::3] += 3 * constrained + ind
-
-        C1 = scipy.sparse.csc_matrix((data, (lins, cons)),
-                                     shape=(3*num, 3*num_nodes))
-        C2 = scipy.sparse.csc_matrix((data, (cons, lins)),
-                                     shape=(3*num_nodes, 3*num))
-        zmat = scipy.sparse.csc_matrix((3*num, 3*num))
-
-        return C1, C2, zmat
-
-    def get_matrix(self, areas):
-        t0 = time.time()
-        if 0:
-            Kmat = self.get_stiffness_matrix(areas)
-            C1, C2, Zmat = self.get_constraint_matrix()
-
-            mat = scipy.sparse.bmat(
-                [
-                    [Kmat, C2],
-                    [C1, Zmat],
-                ], format='csc')
-        else:
-            nodes = self.nodes
-            elems = self.elements
-            cons = self.cons
-            E = self.E
-
-            num_nodes = nodes.shape[0]
-            num_elems = elems.shape[0]
-            num_cons = cons.shape[0]
-
-            nnz = 36 * num_elems + 2 * 3 * num_cons
-
-            data = lib.getmtx2(num_nodes, num_elems, nnz,
-                               E, nodes, elems+1, areas)
-
-            size = 3 * num_nodes + 3 * num_cons
-
-            #print('len(data),len(self.rows),len(self.cols),nnz,data',\
-            #len(data),len(self.rows),len(self.cols),nnz,data)
-
-            mat = scipy.sparse.csc_matrix((data, (self.rows, self.cols)),
-                                          shape=(size, size))
-
-        t1 = time.time()
+        mat = scipy.sparse.csc_matrix((data, (self.rows, self.cols)),
+                                      shape=(size, size))
 
         return mat
 
@@ -252,41 +136,24 @@ class SysDispAug(Component):
     def linearize(self, params, unknowns, resids):
         self.lu_T = scipy.sparse.linalg.splu(self.mat.T)
 
-        if 1:
-            nodes = self.nodes
-            elems = self.elements
-            cons = self.cons
-            disp_aug = unknowns['disp_aug']
-            E = self.E
+        nodes = self.nodes
+        elems = self.elements
+        cons = self.cons
+        disp_aug = unknowns['disp_aug']
+        E = self.E
 
-            num_nodes = nodes.shape[0]
-            num_elems = elems.shape[0]
-            num_cons = cons.shape[0]
-            num_aug = disp_aug.shape[0]
-            nnz = 36 * num_elems
+        num_nodes = nodes.shape[0]
+        num_elems = elems.shape[0]
+        num_cons = cons.shape[0]
+        num_aug = disp_aug.shape[0]
+        nnz = 36 * num_elems
 
-            data, rows, cols = lib.getresder(num_nodes, num_elems, num_aug, nnz,
-                                             E, nodes, elems+1, disp_aug)
+        data, rows, cols = lib.getresder(num_nodes, num_elems, num_aug, nnz,
+                                         E, nodes, elems+1, disp_aug)
 
-            size = 3 * num_nodes + 3 * num_cons
-            mat = scipy.sparse.csc_matrix((data, (rows, cols)),
-                                          shape=(size, num_elems))
-
-        else:
-            nodes = self.nodes
-            elems = self.elements
-            cons = self.cons
-            disp_aug = unknowns['disp_aug']
-
-            num_nodes = nodes.shape[0]
-            num_elems = elems.shape[0]
-            num_cons = cons.shape[0]
-
-            data = self.data2 * disp_aug[self.ind_aug2]
-
-            size = 3 * num_nodes + 3 * num_cons
-            mat = scipy.sparse.csc_matrix((data, (self.rows2, self.cols2)),
-                                          shape=(size, num_elems))
+        size = 3 * num_nodes + 3 * num_cons
+        mat = scipy.sparse.csc_matrix((data, (rows, cols)),
+                                      shape=(size, num_elems))
 
         jac = {} # self.alloc_jacobian()
         jac['disp_aug', 'disp_aug'] = self.mat
