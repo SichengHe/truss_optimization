@@ -71,14 +71,11 @@ def plot(ax, sol, elems, nodes):
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-nodes = loadtxt('../output/data_nodes.dat')
-elems = loadtxt('../output/data_elems.dat')
+nodes = loadtxt('../OUTPUT/data_nodes.dat')
+elems = loadtxt('../OUTPUT/data_elems.dat')
 
 
 db = sqlitedict.SqliteDict('data.db', 'iterations')
-print( list( db.keys() ) )
-
-
 
 
 index = 0
@@ -97,7 +94,7 @@ for case_name, case_data in db.iteritems():
 
         plot(ax, dimless_area, elems, nodes)
         plt.axis('off')
-        pylab.savefig('tmp/area%03i.png'%(index))
+        pylab.savefig('../tmp/area/area%03i.png'%(index))
 
         abs_stress = abs(stress)
         max_abs_stress = max(abs_stress)
@@ -108,9 +105,8 @@ for case_name, case_data in db.iteritems():
 
         plot(ax, dimless_stress, elems, nodes)
         plt.axis('off')
-        pylab.savefig('tmp/stress%03i.png'%(index))
+        pylab.savefig('../tmp/stress/stress%03i.png'%(index))
         print index
 
     print index
     index += 1
-

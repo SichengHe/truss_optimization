@@ -183,7 +183,7 @@ def case_preprocess(ind_case):
 
         return [nodes, elements, cons, forces]
 
-    
+
 
 
 
@@ -237,10 +237,10 @@ E, s0, nodes, elements, cons, forces, area_low, area_up, elem_len = scaling(ind_
 
 
 # save the files
-numpy.savetxt('../output/data_elems.dat', elements)
-numpy.savetxt('../output/data_nodes.dat', nodes)
-numpy.savetxt('../output/data_constraints.dat', cons)
-numpy.savetxt('../output/data_forces.dat', forces)
+numpy.savetxt('OUTPUT/data_elems.dat', elements)
+numpy.savetxt('OUTPUT/data_nodes.dat', nodes)
+numpy.savetxt('OUTPUT/data_constraints.dat', cons)
+numpy.savetxt('OUTPUT/data_forces.dat', forces)
 
 
 # set up OpenMDAO systems and solve the optimzation problem
@@ -266,9 +266,9 @@ root.add('sys_stress',
 root.add('sys_ks',
          SysKS(elements, 1.0),
          promotes=['*'])
-# root.add('bkl_ks',
-#          EulerBucklingKS(E, elements, nodes, cons),
-#          promotes=['*'])
+root.add('bkl_ks',
+         EulerBucklingKS(E, elements, nodes, cons),
+         promotes=['*'])
 
 prob = Problem()
 prob.root = root
@@ -302,7 +302,7 @@ prob.driver.add_desvar('areas',lower=area_low, upper=area_up, scaler=1e0) # test
 prob.driver.add_objective('volume', scaler=1e0)
 prob.driver.add_constraint('minstress', upper=0.)
 prob.driver.add_constraint('maxstress', upper=0.)
-#\prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
+prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
 
 # setup data recording
 recorder = SqliteRecorder('postprocess/data.db')
