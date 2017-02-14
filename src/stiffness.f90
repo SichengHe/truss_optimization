@@ -252,6 +252,168 @@ end subroutine getmtx2D
 
 
 
+
+subroutine getmtx2(num_nodes, num_elems, nnz, &
+     E, nodes, elems, areas, data)
+
+  implicit none
+
+  !f2py intent(in) num_nodes, num_elems, nnz, E, nodes, elems, areas
+  !f2py intent(out) data
+  !f2py depend(num_nodes) nodes
+  !f2py depend(num_elems) elems, areas
+  !f2py depend(nnz) data
+
+  ! Input
+  integer, intent(in) :: num_nodes, num_elems, nnz
+  double precision, intent(in) :: E, nodes(num_nodes, 3)
+  integer, intent(in) :: elems(num_elems, 2)
+  double precision, intent(in) :: areas(num_elems)
+
+  ! Output
+  double precision, intent(out) :: data(nnz)
+
+  ! Working
+  double precision :: Telem(2, 6), Kelem(2, 2)
+  double precision :: xyz1(3), xyz2(3), A, L, cos_xyz(3)
+  double precision :: data6x6(6, 6)
+  integer :: k1, k2, ielem, index
+
+  Kelem(1, 1) =  1.
+  Kelem(1, 2) = -1.
+  Kelem(2, 1) = -1.
+  Kelem(2, 2) =  1.
+
+  Telem(:, :) = 0.
+
+  data(36 * num_elems+1 : nnz) = 1. ! NOTICE: this may cause a possible bug: it will give the right boundary condition but the K matrix is disturbed!
+
+  !data(:) = 1.
+  !print*, "data(1:2)", data(1:2), "data(:)", data(:)
+
+  index = 0
+  do ielem = 1, num_elems
+     xyz1 = nodes(elems(ielem, 1), :)
+     xyz2 = nodes(elems(ielem, 2), :)
+     L = sqrt(dot_product(xyz2 - xyz1, xyz2 - xyz1))
+     A = areas(ielem)
+
+     cos_xyz = (xyz2 - xyz1) / L
+     Telem(1, 1:3) = cos_xyz
+     Telem(2, 4:6) = cos_xyz
+
+     data6x6(:, :) = matmul(matmul(transpose(Telem), Kelem), Telem)
+     data6x6 = data6x6 * E * A / L
+
+     do k1 = 1, 6
+        do k2 = 1, 6
+           index = index + 1
+           data(index) = data(index) + data6x6(k1, k2)
+        end do
+     end do
+  end do
+
+  if (index .ne. 36 * num_elems) then
+     print *, 'Error in getmtx: did not reach end of nnz vectors'
+  end if
+
+  !print*, "data", data, "E, A, L", E, A, L
+
+end subroutine getmtx2
+
+
+
+
+
+
+
+
+
+subroutine getmtx2D2(num_nodes, num_elems, nnz, &
+     E, nodes, elems, areas, data)
+
+  implicit none
+
+  !f2py intent(in) num_nodes, num_elems, nnz, E, nodes, elems, areas
+  !f2py intent(out) data
+  !f2py depend(num_nodes) nodes
+  !f2py depend(num_elems) elems, areas
+  !f2py depend(nnz) data
+
+  ! Input
+  integer, intent(in) :: num_nodes, num_elems, nnz
+  double precision, intent(in) :: E, nodes(num_nodes, 2)
+  integer, intent(in) :: elems(num_elems, 2)
+  double precision, intent(in) :: areas(num_elems)
+
+  ! Output
+  double precision, intent(out) :: data(nnz)
+
+  ! Working
+  double precision :: Telem(2, 4), Kelem(2, 2)
+  double precision :: xyz1(2), xyz2(2), A, L, cos_xyz(2)
+  double precision :: data4x4(4, 4)
+  integer :: k1, k2, ielem, index
+
+  Kelem(1, 1) =  1.
+  Kelem(1, 2) = -1.
+  Kelem(2, 1) = -1.
+  Kelem(2, 2) =  1.
+
+  Telem(:, :) = 0.
+
+  data(16 * num_elems+1 : nnz) = 1. ! NOTICE: this may cause a possible bug: it will give the right boundary condition but the K matrix is disturbed!
+
+  !data(:) = 1.
+  !print*, "data(1:2)", data(1:2), "data(:)", data(:)
+
+  index = 0
+  do ielem = 1, num_elems
+     xyz1 = nodes(elems(ielem, 1), :)
+     xyz2 = nodes(elems(ielem, 2), :)
+     L = sqrt(dot_product(xyz2 - xyz1, xyz2 - xyz1))
+     A = areas(ielem)
+
+     cos_xyz = (xyz2 - xyz1) / L
+     Telem(1, 1:2) = cos_xyz
+     Telem(2, 3:4) = cos_xyz
+
+     data4x4(:, :) = matmul(matmul(transpose(Telem), Kelem), Telem)
+     data4x4 = data4x4 * E * A / L
+
+     do k1 = 1, 4
+        do k2 = 1, 4
+           index = index + 1
+           data(index) = data(index) + data4x4(k1, k2)
+        end do
+     end do
+  end do
+
+  if (index .ne. 16 * num_elems) then
+     print *, 'Error in getmtx: did not reach end of nnz vectors'
+  end if
+
+  !print*, "data", data, "E, A, L", E, A, L
+
+end subroutine getmtx2D2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 subroutine getresder(num_nodes, num_elems, num_aug, nnz, &
      E, nodes, elems, disp_aug, data, rows, cols)
 

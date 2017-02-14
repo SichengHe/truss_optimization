@@ -33,32 +33,33 @@ class SysDispAug(Component):
         num_cons = cons.shape[0]
 
         self.add_param('areas', val=numpy.zeros(num_elem))
-        self.add_state('disp_aug', val=numpy.zeros(3*num_nodes + 3*num_cons))
+
+        if (1 == 0):
+
+            self.add_state('disp_aug', val=numpy.zeros(3*num_nodes + 3*num_cons))
+
+        else:
+
+            self.add_state('disp_aug', val=numpy.zeros(2*num_nodes + 2*num_cons))
+
 
         self.nodes = nodes
         self.elements = elements
         self.loads = loads
         self.cons = cons
-        self.rhs = numpy.zeros(3*num_nodes + 3*num_cons)
-        self.rhs[:3*num_nodes] = loads
+
         self.E = E
 
 
+        if (1 == 0):
 
-        nodes = self.nodes
-        elems = self.elements
-        cons = self.cons
-        E = self.E
+            self.rhs = numpy.zeros(3*num_nodes + 3*num_cons)
+            self.rhs[:3*num_nodes] = loads
 
-        num_nodes = nodes.shape[0]
-        num_elems = elems.shape[0]
-        num_cons = cons.shape[0]
+        else:
 
-        nnz = 36 * num_elems + 2 * 3 * num_cons
-
-        self.data, self.rows, self.cols = lib.getmtx(num_nodes, num_elems, num_cons, nnz,
-                                      E, nodes, elems+1, numpy.ones(num_elems), cons+1)
-
+            self.rhs = numpy.zeros(2*num_nodes + 2*num_cons)
+            self.rhs[:2*num_nodes] = loads
 
 
         nodes = self.nodes
@@ -69,10 +70,39 @@ class SysDispAug(Component):
         num_nodes = nodes.shape[0]
         num_elems = elems.shape[0]
         num_cons = cons.shape[0]
-        nnz = 36 * num_elems
 
-        out = lib.getresder2(num_nodes, num_elems, nnz, E, nodes, elems+1)
-        self.data2, self.rows2, self.cols2, self.ind_aug2 = out
+        if (1 == 0):
+
+            nnz = 36 * num_elems + 2 * 3 * num_cons
+
+        else:
+
+            nnz = 16 * num_elems + 2 * 2 * num_cons
+
+        if (1 == 0):
+
+            data, self.rows, self.cols = lib.getmtx(num_nodes, num_elems, num_cons, nnz,
+                                          E, nodes, elems+1, numpy.ones(num_elems), cons+1)
+        else:
+
+            data, self.rows, self.cols = lib.getmtx2D(num_nodes, num_elems, num_cons, nnz,
+                                          E, nodes, elems+1, numpy.ones(num_elems), cons+1)
+
+
+        if (1 == 0):
+
+            nnz = 36 * num_elems
+
+            out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
+            self.data2, self.rows2, self.cols2, self.ind_aug2 = out
+
+
+        else:
+
+            nnz = 16 * num_elems
+
+            out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
+            self.data2, self.rows2, self.cols2, self.ind_aug2 = out
 
 #        self.deriv_options['type'] = 'cs'
 #        self.deriv_options['form'] = 'central'
@@ -89,15 +119,24 @@ class SysDispAug(Component):
         num_elems = elems.shape[0]
         num_cons = cons.shape[0]
 
-        nnz = 36 * num_elems + 2 * 3 * num_cons
+        if (1 == 0):
 
-        data = lib.getmtx2(num_nodes, num_elems, nnz,
+            nnz = 36 * num_elems + 2 * 3 * num_cons
+
+            data = lib.getmtx2(num_nodes, num_elems, nnz,
                            E, nodes, elems+1, areas)
 
-        size = 3 * num_nodes + 3 * num_cons
+            size = 3 * num_nodes + 3 * num_cons
 
-        #print('len(data),len(self.rows),len(self.cols),nnz,data',\
-        #len(data),len(self.rows),len(self.cols),nnz,data)
+        else:
+
+            nnz = 16 * num_elems + 2 * 2 * num_cons
+
+            data = lib.getmtx2D2(num_nodes, num_elems, nnz,
+                           E, nodes, elems+1, areas)
+
+            size = 2 * num_nodes + 2 * num_cons
+
 
         mat = scipy.sparse.csc_matrix((data, (self.rows, self.cols)),
                                       shape=(size, size))
