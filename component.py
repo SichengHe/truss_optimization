@@ -85,24 +85,24 @@ class SysDispAug(Component):
                                           E, nodes, elems+1, numpy.ones(num_elems), cons+1)
         else:
 
-            data, self.rows, self.cols = lib.getmtx2D(num_nodes, num_elems, num_cons, nnz,
+            data, self.rows, self.cols = lib.getmtx2d(num_nodes, num_elems, num_cons, nnz,
                                           E, nodes, elems+1, numpy.ones(num_elems), cons+1)
 
 
-        if (1 == 0):
+        # if (1 == 0):
 
-            nnz = 36 * num_elems
+        #     nnz = 36 * num_elems
 
-            out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
-            self.data2, self.rows2, self.cols2, self.ind_aug2 = out
+        #     out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
+        #     self.data2, self.rows2, self.cols2, self.ind_aug2 = out
 
 
-        else:
+        # else:
 
-            nnz = 16 * num_elems
+        #     nnz = 16 * num_elems
 
-            out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
-            self.data2, self.rows2, self.cols2, self.ind_aug2 = out
+        #     out = lib.getresder(num_nodes, num_elems, nnz, E, nodes, elems+1)
+        #     self.data2, self.rows2, self.cols2, self.ind_aug2 = out
 
 #        self.deriv_options['type'] = 'cs'
 #        self.deriv_options['form'] = 'central'
@@ -132,7 +132,7 @@ class SysDispAug(Component):
 
             nnz = 16 * num_elems + 2 * 2 * num_cons
 
-            data = lib.getmtx2D2(num_nodes, num_elems, nnz,
+            data = lib.getmtx2d2(num_nodes, num_elems, nnz,
                            E, nodes, elems+1, areas)
 
             size = 2 * num_nodes + 2 * num_cons
@@ -185,12 +185,24 @@ class SysDispAug(Component):
         num_elems = elems.shape[0]
         num_cons = cons.shape[0]
         num_aug = disp_aug.shape[0]
-        nnz = 36 * num_elems
 
-        data, rows, cols = lib.getresder(num_nodes, num_elems, num_aug, nnz,
-                                         E, nodes, elems+1, disp_aug)
+        if (1 == 0):
+            nnz = 36 * num_elems
 
-        size = 3 * num_nodes + 3 * num_cons
+            data, rows, cols = lib.getresder(num_nodes, num_elems, num_aug, nnz,
+                                            E, nodes, elems+1, disp_aug)
+
+            size = 3 * num_nodes + 3 * num_cons
+
+        else:
+            nnz = 16 * num_elems
+
+            data, rows, cols = lib.getresder2d(num_nodes, num_elems, num_aug, nnz,
+                                            E, nodes, elems+1, disp_aug)
+
+            size = 2 * num_nodes + 2 * num_cons
+
+
         mat = scipy.sparse.csc_matrix((data, (rows, cols)),
                                       shape=(size, num_elems))
 
@@ -225,24 +237,44 @@ class SysDisplacements(Component):
         super(SysDisplacements, self).__init__()
 
         n = nodes.shape[0]
-        size = 3 * n + 3 * cons.shape[0]
+
+        if (1 == 0):
+            size = 3 * n + 3 * cons.shape[0]
+        else:
+            size = 2 * n + 2 * cons.shape[0]
+
         self.n = n
 
         self.add_param('disp_aug', val=numpy.zeros((size)))
-        self.add_output('disp', val=numpy.zeros((n, 3)))
+
+        if (1 == 0):
+            self.add_output('disp', val=numpy.zeros((n, 3)))
+        else:
+            self.add_output('disp', val=numpy.zeros((n, 2)))
+
 
         #self.deriv_options['type'] = 'cs'
         #self.deriv_options['form'] = 'central'
         #self.deriv_options['extra_check_partials_form'] = "central"
-
-        data = numpy.ones(3 * n)
-        lins = numpy.arange(3 * n)
-        self.mat = scipy.sparse.csc_matrix((data, (lins, lins)),
+        if (1 == 0):
+            data = numpy.ones(3 * n)
+            lins = numpy.arange(3 * n)
+            self.mat = scipy.sparse.csc_matrix((data, (lins, lins)),
                                            shape=(3*n, size))
+        else:
+            data = numpy.ones(2 * n)
+            lins = numpy.arange(2 * n)
+            self.mat = scipy.sparse.csc_matrix((data, (lins, lins)),
+                                           shape=(2*n, size))
+
 
     def solve_nonlinear(self, params, unknowns, resids):
         n = self.n
-        unknowns['disp'] = numpy.array(params['disp_aug'][:3*n].reshape((n, 3)))
+        if (1 == 0):
+            unknowns['disp'] = numpy.array(params['disp_aug'][:3*n].reshape((n, 3)))
+        else:
+            unknowns['disp'] = numpy.array(params['disp_aug'][:2*n].reshape((n, 2)))
+
 
     def linearize(self, params, unknowns, resids):
         jac = {}
@@ -259,15 +291,28 @@ class SysCompliance(Component):
         self.n = nodes.shape[0]
         self.loads = loads
 
-        self.add_param('disp', val=numpy.zeros((self.n, 3)))
+        if (1 == 0):
+
+            self.add_param('disp', val=numpy.zeros((self.n, 3)))
+
+        else:
+
+            self.add_param('disp', val=numpy.zeros((self.n, 2)))
+
         self.add_output('compliance', val=0.)
 
     def solve_nonlinear(self, params, unknowns, resids):
         unknowns['compliance'] = numpy.sum(params['disp'] * self.loads)
 
     def linearize(self, params, unknowns, resids):
+
         jac = {}
-        jac['compliance', 'disp'] = self.loads.reshape((1, 3*self.n))
+
+        if (1 == 0):
+            jac['compliance', 'disp'] = self.loads.reshape((1, 3*self.n))
+        else:
+            jac['compliance', 'disp'] = self.loads.reshape((1, 2*self.n))
+
         return jac
 
 
@@ -304,7 +349,14 @@ class SysStress(Component):
         self.E = E
         self.s0 = s0
 
-        self.add_param('disp', val=numpy.zeros((nodes.shape[0], 3)))
+        if (1 == 0):
+
+            self.add_param('disp', val=numpy.zeros((nodes.shape[0], 3)))
+
+        else:
+
+            self.add_param('disp', val=numpy.zeros((nodes.shape[0], 2)))
+
         self.add_output('stress', val=numpy.zeros(elems.shape[0]))
 
         nodes = self.nodes
@@ -314,13 +366,28 @@ class SysStress(Component):
 
         num_nodes = nodes.shape[0]
         num_elems = elems.shape[0]
-        nnz = 2 * 3 * num_elems
 
-        data, rows, cols = lib.getstressder(num_nodes, num_elems, nnz,
+        if (1 == 0):
+
+            nnz = 2 * 3 * num_elems
+
+            data, rows, cols = lib.getstressder(num_nodes, num_elems, nnz,
                                             E, nodes, elems+1)
-        data /= s0
-        self.mat = scipy.sparse.csc_matrix((data, (rows, cols)),
-                                           shape=(num_elems, 3 * num_nodes))
+            data /= s0
+
+            self.mat = scipy.sparse.csc_matrix((data, (rows, cols)),
+                                               shape=(num_elems, 3 * num_nodes))
+
+        else:
+            
+            nnz = 2 * 2 * num_elems
+
+            data, rows, cols = lib.getstressder2d(num_nodes, num_elems, nnz,
+                                            E, nodes, elems+1)
+            data /= s0
+
+            self.mat = scipy.sparse.csc_matrix((data, (rows, cols)),
+                                               shape=(num_elems, 2 * num_nodes))
 
     def solve_nonlinear(self, params, unknowns, resids):
         nodes = self.nodes

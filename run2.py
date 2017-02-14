@@ -31,9 +31,11 @@ def case_preprocess(ind_case):
         nodes = []
         for i in xrange(N_pattern+1):
             for j in xrange(2):
-                nodes_loc = [i*pattern_length,j*-pattern_length,0.0]
+                nodes_loc = [i*pattern_length,j*-pattern_length]
                 nodes.append(nodes_loc)
         nodes = numpy.array(nodes)
+
+        print(nodes)
 
 
         #
@@ -56,7 +58,7 @@ def case_preprocess(ind_case):
         cons = numpy.array(cons)
 
         #
-        forces = numpy.zeros((N_pattern*2+2,3))
+        forces = numpy.zeros((N_pattern*2+2,2))
         forces[-1,1] = 1e5
 
         return [nodes, elements, cons, forces]
@@ -209,12 +211,12 @@ def scaling(ind_case, scale_x, scale_mass, E, s0, area_low, area_up):
     area_low = area_low * scale_x**2
     area_up = area_up * scale_x**2
 
-    return E, s0, nodes, elements, cons, forces, area_low, area_up
+    return E, s0, nodes, elements, cons, forces, area_low, area_up, elem_len
 
 
 
 
-# case to run
+# case to runpip install git+http://github.com/OpenMDAO/OpenMDAO.git@master
 ind_case = 1
 
 # scaling factor
@@ -230,7 +232,7 @@ area_low = 0.0001
 area_up = 0.1
 
 
-E, s0, nodes, elements, cons, forces, area_low, area_up = scaling(ind_case, scale_x, scale_mass, E, s0, area_low, area_up)
+E, s0, nodes, elements, cons, forces, area_low, area_up, elem_len = scaling(ind_case, scale_x, scale_mass, E, s0, area_low, area_up)
 
 
 
@@ -264,9 +266,9 @@ root.add('sys_stress',
 root.add('sys_ks',
          SysKS(elements, 1.0),
          promotes=['*'])
-root.add('bkl_ks',
-         EulerBucklingKS(E, elements, nodes, cons),
-         promotes=['*'])
+# root.add('bkl_ks',
+#          EulerBucklingKS(E, elements, nodes, cons),
+#          promotes=['*'])
 
 prob = Problem()
 prob.root = root
@@ -282,8 +284,8 @@ t1 = time.time()
 nodes0 = nodes
 nodes1 = nodes + prob['disp']
 
-writeBDF('jig.bdf', nodes0, elements+1)
-writeBDF('deflected.bdf', nodes1, elements+1)
+#writeBDF('jig.bdf', nodes0, elements+1)
+#writeBDF('deflected.bdf', nodes1, elements+1)
 
 if 0:
     prob.check_partial_derivatives(compact_print=True)
@@ -300,18 +302,22 @@ prob.driver.add_desvar('areas',lower=area_low, upper=area_up, scaler=1e0) # test
 prob.driver.add_objective('volume', scaler=1e0)
 prob.driver.add_constraint('minstress', upper=0.)
 prob.driver.add_constraint('maxstress', upper=0.)
-#prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
+#\prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
 
 # setup data recording
-prob.driver.add_recorder(SqliteRecorder('data.db'))
+recorder = SqliteRecorder('postprocess/data.db')
+recorder.options['record_params'] = True
+recorder.options['record_metadata'] = True
+prob.driver.add_recorder(recorder)
+
 prob.setup()
-#view_tree(prob, outfile="aerostruct.html", show_browser=True)
+view_tree(prob, outfile="partition_tree/aerostruct.html", show_browser=True)
 prob.run()
 
 # print("prob['areas']",prob['areas'])
-# print("prob['stress']",prob['stress'])
+print("prob['stress']",prob['stress'])
 # print("prob['disp_aug']",prob['disp_aug'])
 # print("prob['disp']",prob['disp'])
 # print("neg_stress_plus_buckling_con",prob['neg_stress_plus_buckling_con'])
 
-writeBDF('optimized.bdf', nodes+prob['disp'], elements+1)
+#writeBDF('optimized.bdf', nodes+prob['disp'], elements+1)
