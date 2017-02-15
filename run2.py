@@ -35,7 +35,7 @@ def case_preprocess(ind_case):
                 nodes.append(nodes_loc)
         nodes = numpy.array(nodes)
 
-        print(nodes)
+        print("nodes", nodes)
 
 
         #
@@ -50,6 +50,8 @@ def case_preprocess(ind_case):
 
 
         elements = numpy.array(elements)
+
+        print("elements", elements)
 
         #
         cons = []
@@ -266,9 +268,9 @@ root.add('sys_stress',
 root.add('sys_ks',
          SysKS(elements, 1.0),
          promotes=['*'])
-root.add('bkl_ks',
-         EulerBucklingKS(E, elements, nodes, cons),
-         promotes=['*'])
+# root.add('bkl_ks',
+#          EulerBucklingKS(E, elements, nodes, cons),
+#          promotes=['*'])
 
 prob = Problem()
 prob.root = root
@@ -302,7 +304,7 @@ prob.driver.add_desvar('areas',lower=area_low, upper=area_up, scaler=1e0) # test
 prob.driver.add_objective('volume', scaler=1e0)
 prob.driver.add_constraint('minstress', upper=0.)
 prob.driver.add_constraint('maxstress', upper=0.)
-prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
+# prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
 
 # setup data recording
 recorder = SqliteRecorder('postprocess/data.db')

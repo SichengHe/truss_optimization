@@ -513,9 +513,13 @@ class EulerBucklingKS(Component):
         self.elem_len = getLength(nodes,elems) # get the length of bars
         k_list =  getkFactor(elems,cons)
 
+        print("k_list", k_list, "self.elem_len", self.elem_len)
+
         self.eq_len = numpy.zeros(self.n)
         for i in xrange(self.n):
             self.eq_len[i] = self.elem_len[i] * k_list[i]
+
+        print("self.eq_len", self.eq_len)
 
     def solve_nonlinear(self, params, unknowns, resids):
 
