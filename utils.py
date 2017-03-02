@@ -526,6 +526,4 @@ def getkFactor(elements,cons):
         else:
             k_list.append(1.0)
 
-    print("k_list", k_list)
-
     return k_list

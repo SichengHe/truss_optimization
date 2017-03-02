@@ -402,6 +402,8 @@ class SysStress(Component):
         #                                     E, nodes, elems+1, params['disp']) / s0
         unknowns['stress'] = self.mat.dot(params['disp'].flatten())
 
+        print "unknowns['stress']",  unknowns['stress']
+
     def linearize(self, params, unknowns, resids):
         '''
         nodes = self.nodes
@@ -442,6 +444,7 @@ class SysKS(Component):
         self.add_output('maxstress', val=0.)
 
     def solve_nonlinear(self, params, unknowns, resids):
+
         s0 = self.s0
         rho = self.rho
         stress = params['stress']
@@ -495,10 +498,12 @@ class SysKS(Component):
 class EulerBucklingKS(Component):
 
     """Euler buckling constraint"""
-    def __init__(self, E, elems, nodes, cons, rho=10**8):
+    def __init__(self, E_o_s, elems, nodes, cons, rho=10**8):
         super(EulerBucklingKS, self).__init__()
 
-        self.E = E
+        # notice here stress is reduced wrt s0, so we do same thing with E
+
+        self.E_o_s = E_o_s
         self.elems = elems
         self.nodes = nodes
         self.cons = cons
@@ -513,13 +518,10 @@ class EulerBucklingKS(Component):
         self.elem_len = getLength(nodes,elems) # get the length of bars
         k_list =  getkFactor(elems,cons)
 
-        print("k_list", k_list, "self.elem_len", self.elem_len)
-
         self.eq_len = numpy.zeros(self.n)
         for i in xrange(self.n):
             self.eq_len[i] = self.elem_len[i] * k_list[i]
 
-        print("self.eq_len", self.eq_len)
 
     def solve_nonlinear(self, params, unknowns, resids):
 
@@ -528,20 +530,24 @@ class EulerBucklingKS(Component):
         area = params['areas']
         stress = params['stress']
 
+        print "stress in buckling", stress
+
         buckling_con = numpy.zeros(self.n)
         for i in xrange(self.n):
-            buckling_con[i] = -stress[i]-numpy.pi*self.E*area[i]/(self.eq_len[i]**2)
+            buckling_con[i] = -stress[i]-numpy.pi*self.E_o_s*area[i]/(self.eq_len[i]**2)
+
+            print "buckling_con", buckling_con
 
         buckling_con_max = numpy.max(buckling_con)
 
         unknowns['neg_stress_plus_buckling_con'] = buckling_con_max + 1 / rho * \
                                 numpy.log(numpy.sum(numpy.exp(rho*(buckling_con - buckling_con_max))))
-
+ 
     def linearize(self, params, unknowns, resids):
 
         n = self.n
         rho = self.rho
-        E = self.E
+        E_o_s = self.E_o_s
         eq_len = self.eq_len
 
         area = params['areas']
@@ -550,7 +556,7 @@ class EulerBucklingKS(Component):
         # get the maximum con index
         f = numpy.zeros(n)
         for i in xrange(n):
-            f[i] = -stress[i]-numpy.pi*E/eq_len[i]**2*area[i]
+            f[i] = -stress[i]-numpy.pi*E_o_s/eq_len[i]**2*area[i]
 
         indmax = numpy.argmax(f)
 
@@ -567,7 +573,7 @@ class EulerBucklingKS(Component):
         dKS_darea = numpy.zeros(n)
         for i in xrange(n):
             dfi_darea = numpy.zeros(n)
-            dfi_darea[i] = -numpy.pi*E/eq_len[i]**2
+            dfi_darea[i] = -numpy.pi*E_o_s/eq_len[i]**2
 
             dKS_darea += weight_array[i]*dfi_darea
 

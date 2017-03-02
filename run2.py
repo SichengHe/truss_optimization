@@ -268,9 +268,9 @@ root.add('sys_stress',
 root.add('sys_ks',
          SysKS(elements, 1.0),
          promotes=['*'])
-# root.add('bkl_ks',
-#          EulerBucklingKS(E, elements, nodes, cons),
-#          promotes=['*'])
+root.add('bkl_ks',
+         EulerBucklingKS(E/s0, elements, nodes, cons),
+         promotes=['*'])
 
 prob = Problem()
 prob.root = root
@@ -304,7 +304,7 @@ prob.driver.add_desvar('areas',lower=area_low, upper=area_up, scaler=1e0) # test
 prob.driver.add_objective('volume', scaler=1e0)
 prob.driver.add_constraint('minstress', upper=0.)
 prob.driver.add_constraint('maxstress', upper=0.)
-# prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
+prob.driver.add_constraint('neg_stress_plus_buckling_con', upper=0.)
 
 # setup data recording
 recorder = SqliteRecorder('postprocess/data.db')
@@ -316,10 +316,23 @@ prob.setup()
 view_tree(prob, outfile="partition_tree/aerostruct.html", show_browser=True)
 prob.run()
 
+
+numpy.savetxt('OUTPUT/data_areas.dat', prob['areas'])
+numpy.savetxt('OUTPUT/data_stress.dat', prob['stress'])
+numpy.savetxt('OUTPUT/data_disp.dat', prob['disp'])
+
 # print("prob['areas']",prob['areas'])
 print("prob['stress']",prob['stress'])
 # print("prob['disp_aug']",prob['disp_aug'])
-# print("prob['disp']",prob['disp'])
-# print("neg_stress_plus_buckling_con",prob['neg_stress_plus_buckling_con'])
+print("prob['disp']",prob['disp'])
+print("neg_stress_plus_buckling_con",prob['neg_stress_plus_buckling_con'])
 
 #writeBDF('optimized.bdf', nodes+prob['disp'], elements+1)
+
+
+
+
+
+
+
+
