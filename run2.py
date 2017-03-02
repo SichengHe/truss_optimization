@@ -331,8 +331,34 @@ print("neg_stress_plus_buckling_con",prob['neg_stress_plus_buckling_con'])
 
 
 
+# check buckling constraint
+from utils import getLength, getkFactor
+k_list =  getkFactor(elements,cons)
+elem_len = getLength(nodes,elements) 
+elem_N = len(elem_len)
+
+eq_len = numpy.zeros(elem_N)
+for i in xrange(elem_N):
+    eq_len[i] = elem_len[i] * k_list[i]
+
+stress = prob['stress']
+area = prob['areas']
+
+margin_list = []
 
 
+for i in xrange(elem_N):
+
+    stress_loc = stress[i]
+    area_loc = area[i]
+
+    length_loc = eq_len[i]
+
+    margin_loc = -stress_loc - numpy.pi * (E/s0) / length_loc**2 * area_loc
+
+    margin_list.append(margin_loc)
+
+print "margin_list", margin_list
 
 
 
